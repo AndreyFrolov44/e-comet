@@ -5,10 +5,10 @@ from typing import Optional, List
 from fastapi import HTTPException, status
 from sqlalchemy import text
 
-from models.city_weathers import CityWeather, AvgStat, WeatherStatistic, CityStatistic
+from models.city_weathers import CityWeather, AvgStat, WeatherStatistics, CityStatistics
 from services.base import BaseService
 from models.cities import CityModel
-from db import city, city_weather
+from db import city
 from uttils import run_city
 
 
@@ -57,7 +57,7 @@ class CityService(BaseService):
             """)
         return await self.database.fetch_all(query)
 
-    async def get_statistics(self, city_name: str, date_start: datetime.date, date_end: datetime.date) -> WeatherStatistic:
+    async def get_statistics(self, city_name: str, date_start: datetime.date, date_end: datetime.date) -> WeatherStatistics:
         current_city = await self.get(city.c.name == city_name)
         if not current_city:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Город не добавлен')
@@ -76,7 +76,7 @@ class CityService(BaseService):
         city_stat = []
 
         for statistic in statistics:
-            city_stat.append(CityStatistic(
+            city_stat.append(CityStatistics(
                 temperature=statistic[0],
                 pressure=statistic[1],
                 wind_speed=statistic[2],
@@ -85,13 +85,13 @@ class CityService(BaseService):
 
         avg = await self._avg_stat(current_city.id, date_start, date_end)
 
-        weather_stat = WeatherStatistic(
+        weather_stat = WeatherStatistics(
             id=current_city.id,
             name=current_city.name,
             avg_temperature=avg.avg_temperature,
             avg_pressure=avg.avg_pressure,
             avg_wind_speed=avg.avg_wind_speed,
-            statistic=city_stat
+            statistics=city_stat
         )
 
         return weather_stat
