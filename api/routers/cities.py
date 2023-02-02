@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends
 
 from models.cities import CityModel
-from models.city_weathers import CityWeather, WeatherStatistic
+from models.city_weathers import CityWeather, WeatherStatistics
 from services.cities import CityService
 from .depends import get_city_service
 
@@ -27,7 +27,7 @@ async def last_weather(
     return await cities.get_last_weather(search=search)
 
 
-@router.get("/city_stats", response_model=WeatherStatistic)
+@router.get("/city_stats", response_model=WeatherStatistics)
 async def statistics(
         city: str,
         date_start: datetime.date,

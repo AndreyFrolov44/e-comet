@@ -19,15 +19,15 @@ class AvgStat(BaseModel):
     avg_wind_speed: float
 
 
-class CityStatistic(BaseModel):
+class CityStatistics(BaseModel):
     temperature: int
     pressure: int
     wind_speed: float
     datetime: datetime.datetime
 
 
-class WeatherStatistic(AvgStat):
+class WeatherStatistics(AvgStat):
     id: int
     name: str
-    statistic: List[CityStatistic]
+    statistics: List[CityStatistics]
 
