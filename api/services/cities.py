@@ -3,7 +3,6 @@ import json
 from typing import Optional, List
 
 from fastapi import HTTPException, status
-from sqlalchemy import text
 
 from models.city_weathers import CityWeather, AvgStat, WeatherStatistics, CityStatistics
 from services.base import BaseService
@@ -33,7 +32,7 @@ class CityService(BaseService):
 
     async def get_last_weather(self, search: Optional[str]) -> List[CityWeather]:
         if search:
-            query = text(f"""
+            query = """
                 SELECT cities.id, cities.name, cw.temperature, cw.pressure, cw.wind_speed, cw.datetime
                 FROM cities
                 INNER JOIN city_weathers AS cw
@@ -42,19 +41,22 @@ class CityService(BaseService):
                         WHERE cw1.city_id=cities.id
                         ORDER BY datetime DESC limit 1
                     )
-                WHERE cities.name LIKE '%{search}%'
-            """)
-        else:
-            query = text(f"""
-                SELECT cities.id, cities.name, cw.temperature, cw.pressure, cw.wind_speed, cw.datetime
-                FROM cities
-                INNER JOIN city_weathers AS cw
-                    ON cw.city_id=cities.id
-                    AND cw.datetime=(SELECT datetime FROM city_weathers AS cw1
-                        WHERE cw1.city_id=cities.id
-                        ORDER BY datetime DESC limit 1
-                    )
-            """)
+                WHERE cities.name LIKE :search
+            """
+            values = {
+                'search': search + '%'
+            }
+            return await self.database.fetch_all(query, values=values)
+        query = """
+            SELECT cities.id, cities.name, cw.temperature, cw.pressure, cw.wind_speed, cw.datetime
+            FROM cities
+            INNER JOIN city_weathers AS cw
+                ON cw.city_id=cities.id
+                AND cw.datetime=(SELECT datetime FROM city_weathers AS cw1
+                    WHERE cw1.city_id=cities.id
+                    ORDER BY datetime DESC limit 1
+                )
+        """
         return await self.database.fetch_all(query)
 
     async def get_statistics(self, city_name: str, date_start: datetime.date, date_end: datetime.date) -> WeatherStatistics:
@@ -62,14 +64,19 @@ class CityService(BaseService):
         if not current_city:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Город не добавлен')
 
-        query = text(f"""
+        query = """
             SELECT cw.temperature, cw.pressure, cw.wind_speed, cw.datetime
             FROM cities
             INNER JOIN city_weathers AS cw
                 ON cw.city_id=cities.id
-            WHERE cities.id = {current_city.id} AND datetime > '{date_start}' AND datetime <= '{date_end}'
-        """)
-        statistics = await self.database.fetch_all(query)
+            WHERE cities.id = :city_id AND datetime > :date_start AND datetime <= :date_end
+        """
+        values = {
+            'city_id': current_city.id,
+            'date_start': date_start,
+            'date_end': date_end
+        }
+        statistics = await self.database.fetch_all(query, values=values)
         if len(statistics) == 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Статистика отсутствует')
 
@@ -97,14 +104,19 @@ class CityService(BaseService):
         return weather_stat
 
     async def _avg_stat(self, city_id: int, date_start: datetime.date, date_end: datetime.date) -> AvgStat:
-        query = text(f"""
+        query = """
             SELECT AVG(cw.temperature), AVG(cw.pressure), AVG(cw.wind_speed)
             FROM cities
             INNER JOIN city_weathers AS cw
             ON cw.city_id=cities.id
-            WHERE cities.id = {city_id} AND datetime > '{date_start}' AND datetime <= '{date_end}'
-        """)
-        avg = await self.database.fetch_one(query)
+            WHERE cities.id = :city_id AND datetime > :date_start AND datetime <= :date_end
+        """
+        values = {
+            'city_id': city_id,
+            'date_start': date_start,
+            'date_end': date_end
+        }
+        avg = await self.database.fetch_one(query, values=values)
         return AvgStat(
             avg_temperature=avg[0],
             avg_pressure=avg[1],
